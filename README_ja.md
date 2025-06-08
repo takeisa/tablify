@@ -16,7 +16,7 @@
 ## インストール
 
 ```bash
-git clone https://github.com/yourusername/tablify.git
+git clone https://github.com/takeisa/tablify.git
 cd tablify
 cargo build --release
 ```
