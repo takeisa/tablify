@@ -71,3 +71,44 @@ fn test_full_width_characters() {
     assert!(output.contains("| りんご   | 100 |"));
     assert!(output.contains("| オレンジ | 200 |"));
 }
+
+#[test]
+fn test_column_formatting_basic() {
+    let input = "apple\t100\norange\t200";
+    let output = run_tablify_with_input(input, &["--format", "1:left,2:right"]);
+    assert!(output.contains("| apple  | 100 |"));
+    assert!(output.contains("| orange | 200 |"));
+}
+
+#[test]
+fn test_column_formatting_center() {
+    let input = "apple\t100\tgood\norange\t200\tbad";
+    let output = run_tablify_with_input(input, &["--format", "1:left,2:right,3:center"]);
+    assert!(output.contains("| apple  | 100 | good |"));
+    assert!(output.contains("| orange | 200 | bad  |"));
+}
+
+#[test]
+fn test_column_formatting_with_header() {
+    let input = "item\tprice\trating\napple\t100\tgood\norange\t200\tbad";
+    let output = run_tablify_with_input(input, &["--header", "--format", "1:left,2:right,3:center"]);
+    assert!(output.contains("| item   | price | rating |"));
+    assert!(output.contains("| apple  |   100 |  good  |"));
+    assert!(output.contains("| orange |   200 |  bad   |"));
+}
+
+#[test]
+fn test_column_formatting_partial_spec() {
+    let input = "apple\t100\tgood\norange\t200\tbad";
+    let output = run_tablify_with_input(input, &["--format", "2:right"]);
+    assert!(output.contains("| apple  | 100 | good |"));
+    assert!(output.contains("| orange | 200 | bad  |"));
+}
+
+#[test]
+fn test_column_formatting_with_full_width() {
+    let input = "りんご\t100\nオレンジ\t200";
+    let output = run_tablify_with_input(input, &["--format", "1:center,2:right"]);
+    assert!(output.contains("|  りんご  | 100 |"));
+    assert!(output.contains("| オレンジ | 200 |"));
+}

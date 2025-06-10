@@ -1,7 +1,15 @@
 use clap::Parser;
 use regex::Regex;
+use std::collections::HashMap;
 use std::io::{self, Read};
 use unicode_width::UnicodeWidthStr;
+
+#[derive(Debug, Clone, PartialEq)]
+enum Alignment {
+    Left,
+    Right,
+    Center,
+}
 
 #[derive(Parser)]
 #[command(name = "tablify")]
@@ -18,6 +26,9 @@ struct Args {
 
     #[arg(long = "columns", help = "Custom column names (comma-separated)")]
     columns: Option<String>,
+
+    #[arg(long = "format", help = "Column alignment format (e.g., \"1:left,2:right,3:center\")")]
+    format: Option<String>,
 }
 
 fn main() {
@@ -32,7 +43,8 @@ fn main() {
     }
     
     let rows = parse_input(&lines, &args);
-    let table = format_table(rows, &args);
+    let alignments = parse_format_spec(&args.format);
+    let table = format_table(rows, &args, &alignments);
     print!("{}", table);
 }
 
@@ -54,11 +66,36 @@ fn parse_input(lines: &[&str], args: &Args) -> Vec<Vec<String>> {
     rows
 }
 
+fn parse_format_spec(format_spec: &Option<String>) -> HashMap<usize, Alignment> {
+    let mut alignments = HashMap::new();
+    
+    if let Some(spec) = format_spec {
+        for part in spec.split(',') {
+            let part = part.trim();
+            if let Some((col_str, align_str)) = part.split_once(':') {
+                if let Ok(col_num) = col_str.trim().parse::<usize>() {
+                    if col_num > 0 {
+                        let alignment = match align_str.trim().to_lowercase().as_str() {
+                            "left" => Alignment::Left,
+                            "right" => Alignment::Right,
+                            "center" => Alignment::Center,
+                            _ => Alignment::Left,
+                        };
+                        alignments.insert(col_num - 1, alignment);
+                    }
+                }
+            }
+        }
+    }
+    
+    alignments
+}
+
 fn calculate_display_width(text: &str) -> usize {
     UnicodeWidthStr::width(text)
 }
 
-fn format_table(mut rows: Vec<Vec<String>>, args: &Args) -> String {
+fn format_table(mut rows: Vec<Vec<String>>, args: &Args, alignments: &HashMap<usize, Alignment>) -> String {
     if rows.is_empty() {
         return String::new();
     }
@@ -106,26 +143,40 @@ fn format_table(mut rows: Vec<Vec<String>>, args: &Args) -> String {
             }
         }
         
-        result.push_str(&format_row(&header_row, &col_widths));
+        result.push_str(&format_row(&header_row, &col_widths, alignments));
         result.push_str(&format_separator(&col_widths));
     }
     
     for row in &rows[data_start_index..] {
-        result.push_str(&format_row(row, &col_widths));
+        result.push_str(&format_row(row, &col_widths, alignments));
     }
     
     result
 }
 
-fn format_row(row: &[String], col_widths: &[usize]) -> String {
+fn format_row(row: &[String], col_widths: &[usize], alignments: &HashMap<usize, Alignment>) -> String {
     let mut result = String::from("| ");
     
     for (i, cell) in row.iter().enumerate() {
         if i < col_widths.len() {
             let cell_width = calculate_display_width(cell);
-            let padding = col_widths[i] - cell_width;
+            let total_padding = col_widths[i] - cell_width;
+            
+            let alignment = alignments.get(&i).unwrap_or(&Alignment::Left);
+            
+            let (left_padding, right_padding) = match alignment {
+                Alignment::Left => (0, total_padding),
+                Alignment::Right => (total_padding, 0),
+                Alignment::Center => {
+                    let left = total_padding / 2;
+                    let right = total_padding - left;
+                    (left, right)
+                }
+            };
+            
+            result.push_str(&" ".repeat(left_padding));
             result.push_str(cell);
-            result.push_str(&" ".repeat(padding));
+            result.push_str(&" ".repeat(right_padding));
             result.push_str(" | ");
         }
     }
